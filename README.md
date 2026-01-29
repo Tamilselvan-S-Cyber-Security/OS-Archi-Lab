@@ -1,347 +1,583 @@
-# OS Architecture & Kernel Build Lab — Detailed Guide
+# OS Architecture & Kernel Build Lab
 
-**Tamilselvan | Cyber Security Researcher | Ethical Hacker**  
+**A Python-based CLI learning lab for Linux OS architecture and kernel building methods.**
+
+---
+
+## Developed By
+
+**Tamilselvan**  
+Cyber Security Researcher | Ethical Hacker  
 *Search: [Tamilselvan Cybersecurity](https://www.google.com/search?q=Tamilselvan+Cybersecurity)*
 
 ---
 
-## 1. Overview
+## Overview
 
-**OS Architecture & Kernel Build Lab** is a **Python-based CLI (command-line interface)** for learning:
+This lab provides an interactive, educational CLI environment to learn Linux OS architecture and kernel building. Perfect for students, security researchers, and anyone exploring OS development.
 
-- **Linux OS architecture** — user/kernel space, system calls, subsystems
-- **Kernel building** — obtain source, configure, compile, install, boot
-- **Boot process** — BIOS/UEFI, bootloader, initramfs, init
-- **Build environment** — tools, packages, cross-compilation
-- **Example source code** — kernel modules, userspace C, scripts, config files
-
-It is **educational**: it explains concepts and shows commands. Real kernel builds should be done in a **VM or spare machine**, not on your main system.
-
----
-
-## 2. How It Works
-
-### 2.1 Startup Flow
-
-1. **Banner** — ASCII art and credit.
-2. **Main menu** — Choose 1–5 for a module, or 0/exit/quit/q to quit.
-3. **Module** — Each module is a step‑by‑step tutorial with **Press Enter to continue** between sections.
-4. **Back to menu** — After a module, you return to the menu until you exit.
-
-### 2.2 Dependencies
-
-- **Runtime**: `rich>=13.0.0` (panels, markdown, tables, prompts).  
-  If `rich` is missing, the CLI falls back to plain text.
-- **Standard library**: `sys`, `getpass`, `hashlib`, `os`, `subprocess`, etc.
+**Key Learning Areas:**
+- **Linux OS Architecture** — User/kernel space, system calls, memory management, process management, filesystem
+- **Kernel Building** — Source acquisition, configuration, compilation, installation, bootloader integration
+- **Boot Process** — BIOS/UEFI, bootloader (GRUB), initramfs, init system
+- **Build Environment** — Required tools, dependencies, cross-compilation setup
+- **Example Source Code** — Real kernel modules, userspace C programs, build scripts, configuration files
 
 ---
 
-## 3. Requirements
+## Advantages
 
-- **Python** 3.8 or newer
-- **OS**: Windows, Linux, or macOS (CLI runs everywhere; some examples and commands are Linux-specific)
-- **Disk**: Minimal for the lab; ~20–30 GB free if you do real kernel builds in a VM
+| Feature | Advantage | Benefit |
+|---------|-----------|---------|
+| **Interactive CLI** | Rich console interface with colors, tables, and formatted output | Enhanced learning experience with clear visual presentation |
+| **Modular Design** | Separate modules for architecture, kernel build, boot process, build environment | Focused learning on specific topics without distraction |
+| **Real Source Code** | Complete, runnable examples (kernel modules, userspace C, scripts) | Hands-on practice with actual code you can build and run |
+| **Password Protection** | Secure authentication with PBKDF2-HMAC-SHA256 hashing | Protects lab content and ensures authorized access |
+| **Cross-Platform** | Works on Linux, Windows (WSL), and macOS | Learn OS concepts regardless of your development environment |
+| **PyPI Package** | Installable via `pip install os-archi-lab` | Easy distribution and integration into other projects |
+| **Standalone Executable** | Build Windows `.exe` with PyInstaller | Run without Python installation, perfect for sharing |
+| **Programmatic API** | Import and use modules/helpers in your own code | Integrate into custom learning tools or automation |
+| **Comprehensive Examples** | 9+ example files covering kernel modules, syscalls, /proc, /sys | Learn by example with production-ready code patterns |
+| **Educational Focus** | Designed specifically for learning OS internals | Structured content progression from basics to advanced topics |
 
 ---
 
-## 4. Installation
+## OS Working Principles
 
-### 4.1 From Source
+### 1. User Space vs Kernel Space
 
-```bash
-# 1) Enter the project folder
-cd os-archi-lab
+**User Space (Ring 3):**
+- Applications, libraries, shells run here
+- Restricted access to hardware
+- Cannot directly access kernel memory
+- Uses system calls to request kernel services
 
-# 2) Optional: virtual environment
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/macOS:
-source venv/bin/activate
+**Kernel Space (Ring 0):**
+- Full hardware access
+- Manages system resources (CPU, memory, I/O)
+- Handles interrupts, device drivers, scheduling
+- Protected from user space access
 
-# 3) Install runtime dependencies
-pip install -r requirements.txt
+**System Call Interface:**
+- The only sanctioned path from user → kernel
+- Applications call library functions (e.g., `write()`)
+- Library invokes system call instruction (`int 0x80` or `syscall`)
+- Kernel validates and executes request
+- Returns result to user space
 
-# 4) Run
-python main.py
-# or
-python -m os_archi_lab
+### 2. Kernel Subsystems
+
+| Subsystem | Purpose | Key Components |
+|-----------|---------|----------------|
+| **Process Management** | Task scheduling, creation, termination | Scheduler, `task_struct`, PID namespace, signals, cgroups |
+| **Memory Management** | Virtual memory, paging, allocation | Virtual memory manager, page tables, SLUB/SLAB allocators, swap |
+| **Virtual File System (VFS)** | Unified interface for filesystems | `inode`, `dentry`, `super_block`, mount points |
+| **Network Stack** | TCP/IP, sockets, protocols | `sk_buff`, netfilter, network device drivers |
+| **Block I/O** | Disk access, I/O scheduling | Request queue, block device layer, I/O schedulers |
+| **Device Drivers** | Hardware abstraction | Character, block, network drivers; PCI, USB, platform buses |
+
+### 3. Boot Process Flow
+
+```
+[ BIOS / UEFI ]
+      │
+      │ POST, find boot device, load boot sector / EFI stub
+      ▼
+[ Bootloader: GRUB, systemd-boot ]
+      │
+      │ Load vmlinuz + initrd/initramfs; pass cmdline (root=, init=)
+      ▼
+[ Linux Kernel ]
+      │
+      │ Decompress, early init, mount root, execute /sbin/init
+      ▼
+[ init: systemd, SysV, OpenRC ]
+      │
+      │ /etc/inittab or units; bring up services, getty, X/Wayland
+      ▼
+[ User Space — Login, Desktop, Services ]
 ```
 
-### 4.2 As Installed Package (Optional)
+**Key Stages:**
+1. **Firmware (BIOS/UEFI)**: Power-on self-test, locate boot device
+2. **Bootloader**: Load kernel image and initial RAM disk (initrd/initramfs)
+3. **Kernel**: Initialize hardware, mount root filesystem, start init process
+4. **Init System**: Launch system services, getty (login prompts), desktop environment
+
+### 4. System Call Flow
+
+```
+User Application
+      │
+      │ calls write()
+      ▼
+C Library (glibc)
+      │
+      │ puts syscall number in register (rax), args in rdi, rsi, rdx...
+      │ executes syscall instruction
+      ▼
+Kernel Entry (entry_64.S)
+      │
+      │ saves user state, switches to kernel stack
+      │ dispatches via sys_call_table[syscall_number]
+      ▼
+Kernel Handler (sys_write)
+      │
+      │ validates arguments, performs operation
+      │ returns result in rax
+      ▼
+Return to User Space
+      │
+      │ restores user state, returns to libc
+      ▼
+Application receives result
+```
+
+---
+
+## Installation
+
+### Method 1: Install from PyPI (Recommended)
 
 ```bash
-pip install -e .
-# Then from anywhere:
+pip install os-archi-lab
+```
+
+After installation, run:
+```bash
 os-archi-lab
 ```
 
-### 4.3 From .exe (Windows)
-
-- Build once (see **Building the .exe** below), then run `dist\OS-Archi-Lab.exe`.
-- No Python needed on the machine where you run the .exe.
-
----
-
-## 5. Usage
-
-### 5.1 Ways to Run
-
-| Method              | Command                          | Notes                          |
-|---------------------|----------------------------------|--------------------------------|
-| Script              | `python main.py`                 | From project root              |
-| Module              | `python -m os_archi_lab`         | From project root              |
-| Installed command   | `os-archi-lab`                   | After `pip install -e .`       |
-| Windows .exe        | `dist\OS-Archi-Lab.exe`          | After building with PyInstaller |
-
-### 5.2 Main Menu
-
-```
-  [1] Linux OS Architecture    — Layers, syscalls, kernel subsystems
-  [2] Kernel Build Lab         — Source, config, compile, install, boot
-  [3] Boot Process             — BIOS/UEFI, bootloader, initrd, init
-  [4] Build Environment        — Tools, deps, cross-compilation
-  [5] Example Source Code      — Kernel modules, userspace C, scripts, config
-  [0] Exit                     — or type: exit | quit | q
-```
-
-- **Valid choices**: `1`, `2`, `3`, `4`, `5` — run that module.  
-- **Exit**: `0`, `exit`, `quit`, `q` (case-insensitive).  
-- **Invalid**: Message “Invalid. Choose 1–5, or 0/exit/quit/q to quit.” and Press Enter to try again.
-
-### 5.3 Inside a Module
-
-- Sections are shown one by one.  
-- At the end of each: **Press Enter to continue**.  
-- **Ctrl+C** or **EOF** at “Press Enter” exits the program with code `0`.  
-- When the module ends, you return to the main menu.
-
-### 5.4 Exit Codes (for Scripts)
-
-When the process exits:
-
-| Code | Meaning                                                                 |
-|------|-------------------------------------------------------------------------|
-| `0`  | Normal: you chose Exit, or pressed Ctrl+C at “Press Enter to continue”  |
-
-Example (Windows CMD): `python main.py` then `echo %ERRORLEVEL%`.  
-Example (Bash): `python main.py; echo $?`
-
----
-
-## 6. Help — Modules in Detail
-
-### 6.1 [1] Linux OS Architecture
-
-**Purpose:** Understand the layout of the Linux kernel and how user programs talk to it.
-
-**Contents:**
-- **Overview** — Monolithic kernel, user vs kernel space, system calls.
-- **Layered diagram** — ASCII: User space → syscall interface → Kernel (syscall, VFS, scheduler, MM, net, drivers) → Hardware.
-- **Kernel subsystems** — Process, Memory, VFS, Net, Block, Driver; short role of each.
-- **System-call flow** — libc → register setup → `int 0x80`/`syscall` → kernel handler → return. Example: `strace -e write echo hello`.
-- **Kernel source paths** — `arch/`, `kernel/`, `mm/`, `fs/`, `net/`, `drivers/`, `include/`, `init/`.
-- **Security** — Syscall surface, KASLR, SMEP, SMAP, rootkits, containers.
-- **Extra examples** — Syscall numbers (x86-64), `/proc` layout, `printk`/`pr_info` and `dmesg`.
-
----
-
-### 6.2 [2] Kernel Build Lab
-
-**Purpose:** Learn the **steps** to build a Linux kernel (source → config → compile → install → boot).
-
-**Contents:**
-- **Overview** — 5 steps; real builds should be in a VM.
-- **Step 1 — Obtain source** — kernel.org, distro (`apt source`), git. Commands: `wget`, `tar`. Note: verify PGP.
-- **Step 2 — Configure** — `defconfig`, `menuconfig`, `xconfig`, `oldconfig`, `localmodconfig`. Commands: `make defconfig`, `make menuconfig`.
-- **Step 3 — Compile** — `make`, `make -j$(nproc)`, `make modules`, `make bzImage`, `make bindeb-pkg`.
-- **Step 4 — Install** — `make modules_install`, `make install`, `INSTALL_MOD_PATH` for a separate root.
-- **Step 5 — Bootloader** — GRUB, `update-grub`.
-- **Cross-compilation** — e.g. `ARCH=arm64`, `CROSS_COMPILE=aarch64-linux-gnu-`.
-- **Checklist** — Table: get source, config, build, modules_install, kernel install, initrd, bootloader, reboot.
-- **Examples** — Kbuild `obj-m` Makefile for out-of-tree module, `.config` snippets, build-script sequence.
-
----
-
-### 6.3 [3] Boot Process
-
-**Purpose:** From power-on to login: firmware → bootloader → kernel → init.
-
-**Contents:**
-- **Overview** — Four stages.
-- **Diagram** — BIOS/UEFI → Bootloader → Kernel → init → user space.
-- **BIOS vs UEFI** — MBR vs GPT/ESP, legacy vs UEFI boot.
-- **Bootloader (GRUB)** — `grub.cfg`, `linux`/`initrd` lines, `root=`, `init=`, `rdinit=`. Command: `cat /boot/grub/grub.cfg`.
-- **Initramfs/Initrd** — cpio, `/init`, loading drivers, mounting root, `pivot_root`, `exec /sbin/init`. Tools: `mkinitramfs`, `dracut`, `mkinitcpio`. Command: `lsinitramfs`.
-- **Kernel command line** — `root=`, `ro`/`rw`, `init=`, `console=`, `mitigations=`.
-- **Init (systemd)** — `/sbin/init`, targets, `systemctl get-default`.
-- **Security** — Secure Boot, initramfs integrity, protecting GRUB.
-- **Examples** — GRUB menuentry, minimal `/init` for initramfs.
-
----
-
-### 6.4 [4] Build Environment
-
-**Purpose:** What to install to build the kernel; check if tools exist; cross-compilation and lab setup.
-
-**Contents:**
-- **What you need** — gcc, make, ncurses, OpenSSL, libelf, flex, bison, bc, rsync.
-- **Packages by distro** — Debian/Ubuntu, Fedora/RHEL, Arch: package names and `apt`/`dnf`/`pacman` examples.
-- **Tool check** — Runs `gcc --version`, `make --version`, `flex --version`, `bison --version` and shows a table (OK / Not found).
-- **Cross-compilation** — aarch64, ARM; `gcc-aarch64-linux-gnu`, `ARCH`, `CROSS_COMPILE`.
-- **Lab setup** — VM, disk, RAM; never replace the host kernel blindly.
-- **Examples** — Dockerfile for a build image, QEMU one-liner to boot bzImage+initrd, installing `linux-headers-$(uname -r)` for modules.
-
----
-
-### 6.5 [5] Example Source Code
-
-**Purpose:** Browse and copy **real** source you can build and run.
-
-**Contents:**
-- **1. hello.c** — Minimal kernel module (init/exit, `pr_info`). Build: `make` in `examples/kernel_module/hello`. Load: `sudo insmod hello.ko`; unload: `sudo rmmod hello`.
-- **2. proc_hello.c** — Kernel module that adds `/proc/os_archi_lab`. Build in `examples/kernel_module/proc_example`. Test: `cat /proc/os_archi_lab`.
-- **3. raw_syscall.c** — Userspace: `syscall(SYS_getpid)`, `syscall(SYS_write, ...)`. Build: `gcc -o raw_syscall raw_syscall.c`.
-- **4. read_proc.c** — Read `/proc/version`, `/proc/self/status`, `/proc/cpuinfo`.
-- **5. sysfs_example.c** — Read `/sys/kernel/version`, hostname, cpu0 cpufreq, module refcnt.
-- **6. build_kernel.sh** — Script: defconfig, make, modules, modules_install. Set `KERNEL_SRC`; use in a VM.
-- **7. initramfs_init.sh** — Minimal `/init` example: mount /proc, /sys, /dev; placeholder for root mount and `switch_root`.
-- **8. minimal_config_snippet.txt** — Example `CONFIG_*` for `.config`.
-- **9. grub_entry_example.cfg** — GRUB menuentry template; use with `/etc/grub.d/40_custom` and `update-grub`.
-
-The lab reads from the `examples/` folder. When run as **PyInstaller .exe**, `examples/` is bundled and read from `sys._MEIPASS/examples`.
-
----
-
-## 7. Example Source Code (examples/ Folder)
-
-### 7.1 Layout
-
-```
-examples/
-├── kernel_module/
-│   ├── hello/           # Hello World .ko
-│   │   ├── hello.c
-│   │   └── Makefile
-│   └── proc_example/    # /proc entry
-│       ├── proc_hello.c
-│       └── Makefile
-├── userspace/
-│   ├── raw_syscall.c
-│   ├── read_proc.c
-│   ├── sysfs_example.c
-│   └── Makefile
-├── scripts/
-│   ├── build_kernel.sh
-│   └── initramfs_init.sh
-├── config/
-│   ├── minimal_config_snippet.txt
-│   └── grub_entry_example.cfg
-└── README.md
-```
-
-### 7.2 Build & Run (on Linux)
-
-**Kernel modules** (need kernel build env and `linux-headers-$(uname -r)`):
+### Method 2: Install from Source
 
 ```bash
-# hello.ko
-cd examples/kernel_module/hello
-make
-sudo insmod hello.ko
-dmesg | tail
-sudo rmmod hello
+# Clone or download the project
+cd os-archi-lab
 
-# proc_hello.ko
-cd examples/kernel_module/proc_example
-make
-sudo insmod proc_hello.ko
-cat /proc/os_archi_lab
-sudo rmmod proc_hello
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate   # Linux/macOS
+# or: venv\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install in development mode
+pip install -e .
 ```
 
-**Userspace** (only `gcc`):
+### Method 3: Install from Wheel
 
 ```bash
-cd examples/userspace
-make
-./raw_syscall
-./read_proc
-./sysfs_example
+# Download or build wheel file
+pip install dist/os_archi_lab-1.0.0-py3-none-any.whl
 ```
-
-**Scripts** — `build_kernel.sh`: set `KERNEL_SRC`, run in a VM.  
-**Config** — Copy from `config/` into your kernel `.config` or GRUB as needed.
 
 ---
 
-## 8. Building the .exe (Windows)
+## Usage
 
-### 8.1 Steps
+### Command Line Interface
+
+```bash
+# After installation
+os-archi-lab
+
+# Or from source
+python code.py
+python main.py
+python -m os_archi_lab
+```
+
+**Authentication:**
+- Default password: `tamilselvan`
+- Password is hashed using PBKDF2-HMAC-SHA256 with a secret pepper
+- Input is hidden for security
+- Maximum 3 attempts before exit
+
+**Exit Options:**
+- Choose `0` from menu
+- Type `exit`, `quit`, or `q` (case-insensitive)
+- Press `Ctrl+C` at "Press Enter to continue" prompt
+
+**Exit Codes:**
+- `0` — Normal exit
+- `1` — Access denied (wrong password or too many attempts)
+
+---
+
+## Working Code Examples
+
+### Example 1: Run the Full CLI Programmatically
+
+```python
+#!/usr/bin/env python3
+"""
+Run the complete interactive CLI
+"""
+from os_archi_lab.cli import main
+
+if __name__ == "__main__":
+    main()  # Shows banner, password prompt, and main menu
+```
+
+**Save as:** `run_lab.py`  
+**Run:** `python run_lab.py`
+
+---
+
+### Example 2: Run a Specific Module Directly
+
+```python
+#!/usr/bin/env python3
+"""
+Run individual learning modules (bypasses password and menu)
+"""
+from os_archi_lab.modules.architecture import run_architecture_lab
+from os_archi_lab.modules.kernel_build import run_kernel_build_lab
+from os_archi_lab.modules.boot_process import run_boot_process_lab
+from os_archi_lab.modules.build_env import run_build_env_lab
+from os_archi_lab.modules.examples import run_examples_lab
+
+# Run architecture module
+run_architecture_lab()
+
+# Or run other modules
+# run_kernel_build_lab()
+# run_boot_process_lab()
+# run_build_env_lab()
+# run_examples_lab()
+```
+
+**Save as:** `run_module.py`  
+**Run:** `python run_module.py`
+
+---
+
+### Example 3: Use Helper Functions for Custom Output
+
+```python
+#!/usr/bin/env python3
+"""
+Use helper functions to create custom learning materials
+"""
+from os_archi_lab.utils.helpers import (
+    print_banner,
+    print_section,
+    print_step,
+    print_code,
+    print_table,
+)
+
+# Display banner
+print_banner()
+
+# Print formatted section
+print_section(
+    "Linux System Calls",
+    "System calls are the interface between user space and kernel space.",
+    "cyan"
+)
+
+# Print numbered steps
+print_step(1, "User application calls library function (e.g., write())")
+print_step(2, "Library invokes system call instruction")
+print_step(3, "Kernel handles request and returns result")
+
+# Display code block
+print_code(
+    "strace -e write echo hello  # Trace write system calls",
+    "bash"
+)
+
+# Display table
+print_table(
+    ["Syscall", "Number (x86-64)", "Purpose"],
+    [
+        ["read", "0", "Read from file descriptor"],
+        ["write", "1", "Write to file descriptor"],
+        ["open", "2", "Open file"],
+        ["getpid", "39", "Get process ID"],
+    ]
+)
+```
+
+**Save as:** `custom_output.py`  
+**Run:** `python custom_output.py`
+
+---
+
+### Example 4: Access Example Source Code Files
+
+```python
+#!/usr/bin/env python3
+"""
+Read example source code files programmatically
+"""
+import os
+from pathlib import Path
+
+def find_examples_dir():
+    """Find the examples directory."""
+    # Check current directory (development)
+    if Path("examples").exists():
+        return Path("examples")
+    
+    # Check package installation location
+    try:
+        import os_archi_lab
+        pkg_path = Path(os_archi_lab.__file__).parent.parent
+        examples_path = pkg_path / "examples"
+        if examples_path.exists():
+            return examples_path
+    except:
+        pass
+    
+    # Check PyInstaller bundle
+    if hasattr(os, "_MEIPASS"):
+        examples_path = Path(os._MEIPASS) / "examples"
+        if examples_path.exists():
+            return examples_path
+    
+    return None
+
+def read_example(rel_path: str) -> str:
+    """Read an example file."""
+    examples_dir = find_examples_dir()
+    if not examples_dir:
+        return f"Examples directory not found: {rel_path}"
+    
+    file_path = examples_dir / rel_path
+    if file_path.exists():
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return f"File not found: {file_path}"
+
+# Read kernel module example
+hello_c = read_example("kernel_module/hello/hello.c")
+print(hello_c)
+
+# Read userspace example
+syscall_c = read_example("userspace/raw_syscall.c")
+print(syscall_c)
+```
+
+**Save as:** `read_examples.py`  
+**Run:** `python read_examples.py`
+
+---
+
+### Example 5: Create Custom Learning Tool
+
+```python
+#!/usr/bin/env python3
+"""
+Integrate os-archi-lab components into your own application
+"""
+from os_archi_lab.modules.architecture import ARCH_DIAGRAM
+from os_archi_lab.utils.helpers import print_section, print_code, print_step
+
+def my_custom_tool():
+    """Custom learning tool using os-archi-lab components."""
+    
+    print_section(
+        "My Custom OS Learning Tool",
+        "Learn Linux OS architecture with interactive examples.",
+        "green"
+    )
+    
+    # Use the architecture diagram
+    print_section("Linux Architecture", ARCH_DIAGRAM, "blue")
+    
+    # Add custom content
+    print_step(1, "Install os-archi-lab: pip install os-archi-lab")
+    print_code("pip install os-archi-lab", "bash")
+    
+    print_step(2, "Import and use modules")
+    print_code(
+        "from os_archi_lab.modules.architecture import run_architecture_lab\n"
+        "run_architecture_lab()",
+        "python"
+    )
+    
+    print("\n✅ Custom tool created!")
+
+if __name__ == "__main__":
+    my_custom_tool()
+```
+
+**Save as:** `custom_tool.py`  
+**Run:** `python custom_tool.py`
+
+---
+
+## Publishing Python Package to PyPI
+
+### Prerequisites
+
+1. **Create PyPI Account**
+   - Visit [pypi.org](https://pypi.org) and create an account
+   - Enable two-factor authentication (recommended)
+
+2. **Generate API Token**
+   - Go to Account Settings → API tokens
+   - Create a token with scope: `Entire account` or project-specific
+   - Copy the token (format: `pypi-...`)
+
+3. **Install Build Tools**
+   ```bash
+   pip install build twine
+   ```
+
+### Method 1: Automated Script (Recommended)
+
+```bash
+# Build package
+python build_package.py
+
+# Set environment variable
+set PYPI_TOKEN=your_pypi_token_here  # Windows
+# or
+export PYPI_TOKEN=your_pypi_token_here  # Linux/macOS
+
+# Publish to PyPI
+python publish_pypi.py
+
+# Or test on TestPyPI first
+python publish_pypi.py --test
+```
+
+### Method 2: Manual Build and Upload
+
+```bash
+# Step 1: Build package
+python -m build
+
+# This creates:
+# - dist/os_archi_lab-1.0.0-py3-none-any.whl (wheel)
+# - dist/os_archi_lab-1.0.0.tar.gz (source distribution)
+
+# Step 2: Upload to TestPyPI (recommended first)
+python -m twine upload --repository testpypi dist/*.whl dist/*.tar.gz
+
+# Step 3: Upload to PyPI (production)
+python -m twine upload dist/*.whl dist/*.tar.gz
+```
+
+### Method 3: Using Batch Script (Windows)
 
 ```batch
-# From project root (os-archi-lab\)
+# Build and publish in one command
+publish_to_pypi.bat
+```
 
-# 1) Install PyInstaller
+### Method 4: Using Environment Variables
+
+```bash
+# Set tokens
+set PYPI_TOKEN=pypi-your_production_token
+set PYPI_TEST_TOKEN=pypi-your_testpypi_token
+
+# Build
+python build_package.py
+
+# Publish (uses PYPI_TOKEN)
+python publish_pypi.py --yes
+
+# Or test (uses PYPI_TEST_TOKEN)
+python publish_pypi.py --test
+```
+
+### Verification After Publishing
+
+```bash
+# Install from PyPI
+pip install os-archi-lab
+
+# Verify installation
+python -c "import os_archi_lab; print(os_archi_lab.__version__)"
+
+# Run the lab
+os-archi-lab
+```
+
+### Package Metadata
+
+The package is configured in `pyproject.toml`:
+- **Name:** `os-archi-lab`
+- **Version:** `1.0.0`
+- **Author:** Tamilselvan
+- **License:** Educational Use License
+- **Python:** 3.8+
+- **Dependencies:** `rich>=13.0.0`
+
+---
+
+## Requirements
+
+- **Python:** 3.8 or higher
+- **Operating System:** Linux (recommended), Windows (WSL), or macOS
+- **Dependencies:** `rich>=13.0.0` (for enhanced console output)
+
+**Optional (for building):**
+- `pyinstaller>=6.0.0` (for creating `.exe` files)
+- `build` (for building Python packages)
+- `twine` (for uploading to PyPI)
+
+---
+
+## Building Standalone Executable (Windows)
+
+Create a standalone `.exe` file that runs without Python:
+
+```bash
+# Install PyInstaller
 pip install -r requirements-build.txt
 
-# 2) Build (one of these)
+# Build executable
 build_exe.bat
 # or
-.\build_exe.ps1
+build_exe.ps1
 # or
 pyinstaller --noconfirm os_archi_lab.spec
 ```
 
-### 8.2 Output
-
-- **File:** `dist\OS-Archi-Lab.exe`
-- **Icon:** `logo/logo.png` (Windows uses it for the .exe).
-- **Bundled:** `examples/` is inside the .exe; the Example Source Code module works without an external `examples/` folder.
-- **Console:** Runs in a console window; menus work like `python main.py`.
-
-### 8.3 If the Icon Does Not Show
-
-- PyInstaller on Windows works best with `.ico`.  
-- Convert `logo/logo.png` to `logo/logo.ico` and in `os_archi_lab.spec` set:  
-  `icon='logo/logo.ico'`
+**Output:** `dist\OS-Archi-Lab.exe` — single file, includes all dependencies and examples.
 
 ---
 
-## 9. File Reference
+## Example Source Code
 
-| File | Role |
-|------|------|
-| `main.py` | Runs `os_archi_lab.cli.main` and `sys.exit(main())`. |
-| `os_archi_lab/__main__.py` | Enables `python -m os_archi_lab`; calls `cli.main`. |
-| `os_archi_lab/cli.py` | Banner, menu loop, `_parse_choice`, `_do_exit`, dispatches to modules. |
-| `os_archi_lab/utils/helpers.py` | `banner`, `print_banner`, `print_section`, `print_step`, `print_code`, `print_table`, `wait_continue`, `EXIT_OK`, `EXIT_AUTH`, `CREDIT`. |
-| `os_archi_lab/utils/auth.py` | Auth gate at startup; exits on failure. |
-| `os_archi_lab/modules/architecture.py` | `run_architecture_lab`: user/kernel diagram, subsystems, syscall flow, paths, security, examples. |
-| `os_archi_lab/modules/kernel_build.py` | `run_kernel_build_lab`: source, config, compile, install, bootloader, cross-compile, checklist, Kbuild/config/script examples. |
-| `os_archi_lab/modules/boot_process.py` | `run_boot_process_lab`: BIOS/UEFI, GRUB, initramfs, kernel cmdline, init, GRUB/init examples. |
-| `os_archi_lab/modules/build_env.py` | `run_build_env_lab`: deps table, package names, tool check (gcc, make, flex, bison), cross-compile, Dockerfile/QEMU/headers examples. |
-| `os_archi_lab/modules/examples.py` | `run_examples_lab`: `_read()` from `examples/` or `sys._MEIPASS/examples` when frozen; shows all 9 example sources and build/run steps. |
-| `os_archi_lab.spec` | PyInstaller: `main.py`, `datas=('examples','examples')`, `icon='logo/logo.png'`, hiddenimports, excludes. |
+The lab includes **9+ complete, runnable examples**:
 
----
+### Kernel Modules
+- **`hello.c`** — Basic "Hello World" kernel module
+- **`proc_hello.c`** — Kernel module creating `/proc/os_archi_lab` entry
 
-## 10. Useful Tips
+### Userspace C Programs
+- **`raw_syscall.c`** — Direct system calls without libc wrappers
+- **`read_proc.c`** — Reading `/proc` filesystem entries
+- **`sysfs_example.c`** — Interacting with `/sys` filesystem
 
-- **Kernel builds:** Do them only in a VM or on a spare machine. Keep a snapshot before building.  
-- **Example modules:** Need a Linux system and kernel headers; `linux-headers-$(uname -r)` or full kernel source.  
-- **Userspace examples:** Need only `gcc`; run on Linux (or WSL) for `/proc` and `/sys`.  
-- **.exe:** First build can take a few minutes; `excludes` in the spec help reduce size and time.  
-- **Rich:** If `rich` is not installed, the CLI still works with plain text.
+### Build Scripts
+- **`build_kernel.sh`** — Complete kernel build script
+- **`initramfs_init.sh`** — Initramfs initialization script
+
+### Configuration Files
+- **`minimal_config_snippet.txt`** — Minimal kernel `.config` example
+- **`grub_entry_example.cfg`** — GRUB bootloader configuration
+
+All examples are in the `examples/` directory and can be accessed via the interactive CLI or programmatically.
 
 ---
 
-## 11. License & Disclaimer
+## License
 
-**Educational use.**  
-Respect your system: run real kernel builds only in VMs or dedicated lab machines.  
-The lab does not modify your OS; you alone are responsible for any commands you run on real hardware.
+Educational Use License — See [LICENSE](LICENSE) for details.
+
+**Important:** This lab is for educational purposes. Always use virtual machines or dedicated lab machines for kernel building experiments. Respect your system and follow security best practices.
 
 ---
 
-*OS Architecture & Kernel Build Lab — Learn. Build. Secure.*
+*OS Architecture & Kernel Build Lab — Learn. Build. Secure.*  
+*Developed by Tamilselvan | Cyber Security Researcher | Ethical Hacker*
