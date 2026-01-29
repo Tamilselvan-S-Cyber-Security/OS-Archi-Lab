@@ -411,95 +411,7 @@ if __name__ == "__main__":
 
 ---
 
-## Publishing Python Package to PyPI
 
-### Prerequisites
-
-1. **Create PyPI Account**
-   - Visit [pypi.org](https://pypi.org) and create an account
-   - Enable two-factor authentication (recommended)
-
-2. **Generate API Token**
-   - Go to Account Settings → API tokens
-   - Create a token with scope: `Entire account` or project-specific
-   - Copy the token (format: `pypi-...`)
-
-3. **Install Build Tools**
-   ```bash
-   pip install build twine
-   ```
-
-### Method 1: Automated Script (Recommended)
-
-```bash
-# Build package
-python build_package.py
-
-# Set environment variable
-set PYPI_TOKEN=your_pypi_token_here  # Windows
-# or
-export PYPI_TOKEN=your_pypi_token_here  # Linux/macOS
-
-# Publish to PyPI
-python publish_pypi.py
-
-# Or test on TestPyPI first
-python publish_pypi.py --test
-```
-
-### Method 2: Manual Build and Upload
-
-```bash
-# Step 1: Build package
-python -m build
-
-# This creates:
-# - dist/os_archi_lab-1.0.0-py3-none-any.whl (wheel)
-# - dist/os_archi_lab-1.0.0.tar.gz (source distribution)
-
-# Step 2: Upload to TestPyPI (recommended first)
-python -m twine upload --repository testpypi dist/*.whl dist/*.tar.gz
-
-# Step 3: Upload to PyPI (production)
-python -m twine upload dist/*.whl dist/*.tar.gz
-```
-
-### Method 3: Using Batch Script (Windows)
-
-```batch
-# Build and publish in one command
-publish_to_pypi.bat
-```
-
-### Method 4: Using Environment Variables
-
-```bash
-# Set tokens
-set PYPI_TOKEN=pypi-your_production_token
-set PYPI_TEST_TOKEN=pypi-your_testpypi_token
-
-# Build
-python build_package.py
-
-# Publish (uses PYPI_TOKEN)
-python publish_pypi.py --yes
-
-# Or test (uses PYPI_TEST_TOKEN)
-python publish_pypi.py --test
-```
-
-### Verification After Publishing
-
-```bash
-# Install from PyPI
-pip install os-archi-lab
-
-# Verify installation
-python -c "import os_archi_lab; print(os_archi_lab.__version__)"
-
-# Run the lab
-os-archi-lab
-```
 
 ### Package Metadata
 
@@ -526,25 +438,6 @@ The package is configured in `pyproject.toml`:
 
 ---
 
-## Building Standalone Executable (Windows)
-
-Create a standalone `.exe` file that runs without Python:
-
-```bash
-# Install PyInstaller
-pip install -r requirements-build.txt
-
-# Build executable
-build_exe.bat
-# or
-build_exe.ps1
-# or
-pyinstaller --noconfirm os_archi_lab.spec
-```
-
-**Output:** `dist\OS-Archi-Lab.exe` — single file, includes all dependencies and examples.
-
----
 
 ## Example Source Code
 
